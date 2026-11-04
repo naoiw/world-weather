@@ -1,14 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CITIES, cityLocalTime, type City } from '../lib/cities';
-import { geoToCartesian, isSurfaceVisible, subsolarPoint } from '../lib/astronomy';
-import { weatherDescription, type WeatherByCity } from '../lib/weather';
-import {
-  easeInOutCubic, labelDimensions, layoutCityLabels,
-  longitudeToAzimuth, shortestAngularDelta,
-  type LabelCandidate, type PlacedLabel,
-} from '../lib/globeLayout';
+import { CITIES } from '../lib/cities';
+import { geoToCartesian, subsolarPoint } from '../lib/astronomy';
+import { projectVisibleCityMarkers, type CityMarker } from '../lib/globeMarkers';
+import { easeInOutCubic, longitudeToAzimuth, shortestAngularDelta } from '../lib/globeNavigation';
 
 export interface EarthGlobeHandle {
   focusCity(cityId: string): void;
@@ -17,8 +13,6 @@ export interface EarthGlobeHandle {
 interface EarthGlobeProps {
   autoRotate: boolean;
   selectedCityId: string;
-  weather: WeatherByCity;
-  now: Date;
   onSelectCity(cityId: string): void;
   onReady(): void;
   onError(message: string): void;
@@ -134,76 +128,15 @@ function createGlow(): { mesh: THREE.Mesh; geometry: THREE.SphereGeometry; mater
   return { mesh: new THREE.Mesh(geometry, material), geometry, material };
 }
 
-function calculatePins(
-  camera: THREE.PerspectiveCamera,
-  width: number,
-  height: number,
-  selectedCityId: string,
-  previous: readonly PlacedLabel[],
-): PlacedLabel[] {
-  const cameraPoint = camera.position.toArray();
-  const cameraLength = camera.position.length();
-  const candidates: LabelCandidate[] = CITIES.flatMap((city) => {
-    const xyz = geoToCartesian(city.latitude, city.longitude, RADIUS + 0.008);
-    if (!isSurfaceVisible(xyz, cameraPoint, RADIUS)) return [];
-    const point = new THREE.Vector3(...xyz).project(camera);
-    const x = (point.x * 0.5 + 0.5) * width;
-    const y = (-point.y * 0.5 + 0.5) * height;
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
-    return [{
-      id: city.id,
-      x,
-      y,
-      depth: (xyz[0] * cameraPoint[0] + xyz[1] * cameraPoint[1]
-        + xyz[2] * cameraPoint[2]) / cameraLength,
-    }];
-  });
-  return layoutCityLabels(candidates, width, height, selectedCityId, previous);
-}
-
-function CityLabel({ pin, city, weather, now, selected, onSelect }: {
-  pin: PlacedLabel;
-  city: City;
-  weather: WeatherByCity[typeof city.id] | undefined;
-  now: Date;
-  selected: boolean;
-  onSelect(): void;
-}) {
-  const condition = weather ? weatherDescription(weather.code) : null;
-  return (
-    <button
-      type="button"
-      className={`globe-city-label ${pin.side} ${selected ? 'selected' : ''}`}
-      style={{ left: pin.cardX, top: pin.cardY }}
-      onClick={onSelect}
-      title={`${city.name} の天気詳細`}
-    >
-      <span className="city-label-top">
-        <span className="city-label-name">{city.name}</span>
-        <span className="city-label-weather">{condition?.symbol ?? '·'}</span>
-      </span>
-      <span className="city-label-bottom">
-        <strong>{weather ? `${Math.round(weather.temperature)}°` : '—°'}</strong>
-        <span>{cityLocalTime(city, now)}</span>
-      </span>
-      <span className="city-label-humidity">{weather ? `湿度 ${Math.round(weather.humidity)}%` : '天気データなし'}</span>
-    </button>
-  );
-}
-
 const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthGlobe(
-  { autoRotate, selectedCityId, weather, now, onSelectCity, onReady, onError },
+  { autoRotate, selectedCityId, onSelectCity, onReady, onError },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const selectedIdRef = useRef(selectedCityId);
-  const [pins, setPins] = useState<PlacedLabel[]>([]);
+  const [markers, setMarkers] = useState<CityMarker[]>([]);
   const focusRef = useRef<CameraTransition | null>(null);
-  const [viewport, setViewport] = useState({ width: 1, height: 1 });
-
-  useEffect(() => { selectedIdRef.current = selectedCityId; }, [selectedCityId]);
 
   useImperativeHandle(ref, () => ({
     focusCity(cityId: string) {
@@ -248,8 +181,8 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
 
     let disposed = false;
     let frame = 0;
-    let lastPinUpdate = 0;
-    let previousPins: PlacedLabel[] = [];
+    let lastMarkerUpdate = 0;
+    let previousMarkers: CityMarker[] = [];
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -322,7 +255,6 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
-      setViewport({ width, height });
     };
     const observer = new ResizeObserver(resize);
     observer.observe(container);
@@ -342,22 +274,23 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
         if (progress >= 1) focusRef.current = null;
       }
       renderer.render(scene, camera);
-      if (frameTime - lastPinUpdate > 130) {
-        lastPinUpdate = frameTime;
-        const next = calculatePins(camera, Math.max(1, container.clientWidth),
-          Math.max(1, container.clientHeight), selectedIdRef.current, previousPins);
-        // Avoid React re-renders while the camera and labels are stationary.
-        const unchanged = next.length === previousPins.length && next.every((pin, index) => {
-          const prior = previousPins[index];
-          return pin.id === prior.id && pin.side === prior.side
-            && Math.abs(pin.x - prior.x) < 0.6
-            && Math.abs(pin.y - prior.y) < 0.6
-            && Math.abs(pin.cardX - prior.cardX) < 0.6
-            && Math.abs(pin.cardY - prior.cardY) < 0.6;
+      if (frameTime - lastMarkerUpdate > 50) {
+        lastMarkerUpdate = frameTime;
+        const next = projectVisibleCityMarkers(
+          CITIES, camera.position.toArray(), RADIUS,
+          container.clientWidth, container.clientHeight,
+          (point) => new THREE.Vector3(...point).project(camera),
+        );
+        // Keep screen markers synced to the camera without needless React renders.
+        const unchanged = next.length === previousMarkers.length && next.every((pin, index) => {
+          const prior = previousMarkers[index];
+          return pin.id === prior.id
+            && Math.abs(pin.x - prior.x) < 0.3
+            && Math.abs(pin.y - prior.y) < 0.3;
         });
         if (!unchanged) {
-          previousPins = next;
-          setPins(next);
+          previousMarkers = next;
+          setMarkers(next);
         }
       }
     };
@@ -387,34 +320,25 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
     };
   }, [onReady, onError]); // Scene is retained when React weather/time state changes.
 
-  const { cardWidth, cardHeight } = labelDimensions(viewport.width);
-
   return (
     <div className="globe-wrap">
       <div ref={containerRef} className="globe-viewport" />
-      <div className="globe-label-overlay" aria-label="地球儀上の都市と天気">
-        <svg className="globe-leaders" width={viewport.width} height={viewport.height}
-          viewBox={`0 0 ${viewport.width} ${viewport.height}`} aria-hidden="true">
-          {pins.map((pin) => {
-            const endX = pin.side === 'left' ? pin.cardX + cardWidth : pin.cardX;
-            const endY = pin.cardY + cardHeight / 2;
-            const elbow = pin.side === 'left' ? endX + 14 : endX - 14;
-            return (
-              <g key={pin.id} className={pin.id === selectedCityId ? 'leader-selected' : ''}>
-                <path d={`M${pin.x.toFixed(1)},${pin.y.toFixed(1)} L${elbow},${endY} L${endX},${endY}`} />
-                <circle cx={pin.x} cy={pin.y} r="4" />
-                <circle cx={pin.x} cy={pin.y} r="8" className="city-ring" />
-              </g>
-            );
-          })}
-        </svg>
-        {pins.map((pin) => {
-          const city = CITIES.find((entry) => entry.id === pin.id);
+      <div className="globe-marker-layer" aria-label="地球儀の都市マーカー">
+        {markers.map((marker) => {
+          const city = CITIES.find((entry) => entry.id === marker.id);
           if (!city) return null;
+          const selected = city.id === selectedCityId;
           return (
-            <CityLabel key={pin.id} pin={pin} city={city} now={now}
-              weather={weather[pin.id]} selected={pin.id === selectedCityId}
-              onSelect={() => onSelectCity(pin.id)} />
+            <button
+              type="button"
+              key={city.id}
+              className={`globe-marker ${selected ? 'selected' : ''}`}
+              style={{ left: marker.x, top: marker.y }}
+              title={city.name}
+              aria-label={`${city.name}を選択`}
+              aria-pressed={selected}
+              onClick={() => onSelectCity(city.id)}
+            />
           );
         })}
       </div>

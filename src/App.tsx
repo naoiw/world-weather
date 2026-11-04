@@ -75,8 +75,6 @@ export default function App() {
             ref={globeRef}
             autoRotate={autoRotate}
             selectedCityId={selectedCityId}
-            weather={observations}
-            now={now}
             onSelectCity={handleSelectCity}
             onReady={handleReady}
             onError={handleError}
