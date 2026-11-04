@@ -99,7 +99,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 }
 
 
-/* 16 geographic city markers: the globe shows markers only, never callouts. */
+/* Geographic city markers: the globe shows markers only, never callouts. */
 .globe-wrap { position: absolute; inset: 0; z-index: 1; }
 .globe-marker-layer {
   position: absolute;
