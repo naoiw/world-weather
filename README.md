@@ -27,7 +27,7 @@
 | 本番 | `main` | https://naoiw.github.io/world-weather/ |
 | 開発プレビュー | `develop` | https://naoiw.github.io/world-weather/develop/ |
 
-本番とプレビューは1つのGitHub Pagesサイト内の別々のパスで公開します。本番は現段階で準備中ページです。
+本番とプレビューは1つのGitHub Pagesサイト内の別々のパスで公開します。`main` は本番アプリ、`develop` はプレビューとして配信します。
 
 ## 技術スタック
 

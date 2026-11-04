@@ -14,7 +14,7 @@ GitHubの **Settings → Pages → Build and deployment → Source = GitHub Acti
 - `.github/workflows/validate-develop.yml`: `develop` push／PR時に型チェックとビルド。
 - `.github/workflows/deploy-pages.yml`: `main` push、または`develop`のpush CI成功時に、両ブランチをチェックアウトして1つのPagesアーティファクトに合成。
 - 本番のビルドはViteの `base=/world-weather/`、開発用ビルドは `base=/world-weather/develop/`。
-- 現時点の`main`は準備中の静的HTMLのみ。初回公開で`develop`版が確認できるよう、ワークフローが本番HTMLのフォールバック配信に対応しています。
+- `main` は本番用Viteアプリをビルドします。デプロイワークフローには旧準備中ページへのフォールバック処理が残っていますが、通常は使用しません。
 - `develop` → `main`でアプリを公開した後は、本番もViteビルドになります。
 
 ## 初期セットアップ
