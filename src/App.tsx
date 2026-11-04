@@ -16,7 +16,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [selectedCityId, setSelectedCityId] = useState('tokyo');
-  const { observations, fetchedAt, status, error: weatherError, isStale, refresh } = useWeather();
+  const { observations, fetchedAt, error: weatherError, isStale, refresh } = useWeather();
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
@@ -67,27 +67,6 @@ export default function App() {
       </header>
 
       <main className="main-stage">
-        <section className="intro" aria-labelledby="page-title">
-          <div className="eyebrow"><span className="eyebrow-line" /> WORLD VIEW / 002</div>
-          <h1 id="page-title">World<br /><span>Weather.</span></h1>
-          <p>世界の天気を、地球儀から。</p>
-          <p className="intro-note">都市を選ぶと、地球儀がその場所へ回転します。</p>
-          <div className="stage-status">
-            <span className="status-pin" />
-            <div>
-              <span className="status-label">WEATHER STATUS</span>
-              <strong>{status === 'loading' ? '天気情報を取得中'
-                : status === 'error' ? '天気情報の更新に失敗'
-                  : isStale ? '保存済みデータを表示中' : '天気情報を表示中'}</strong>
-            </div>
-          </div>
-          <div className="data-update">
-            <span>最終取得：{fetchedLabel} JST{isStale ? ' · 古いデータ' : ''}</span>
-            <button type="button" onClick={refresh} aria-label="天気情報を再取得">↻ 更新</button>
-          </div>
-          {weatherError && <p className="weather-alert" role="status">{weatherError}</p>}
-        </section>
-
         <section className="globe-stage" aria-label="インタラクティブな地球儀と世界の天気">
           <div className="globe-backlight" aria-hidden="true" />
           <div className="orbit-decoration orbit-decoration-a" aria-hidden="true" />
@@ -134,6 +113,13 @@ export default function App() {
                 {' · '}{selectedWeather.isDay ? '現地の昼' : '現地の夜'}
               </div>
             )}
+          </div>
+          <div className="weather-controls" aria-label="天気データの更新">
+          <div className="data-update">
+            <span>最終取得：{fetchedLabel} JST{isStale ? ' · 古いデータ' : ''}</span>
+            <button type="button" onClick={refresh} aria-label="天気情報を再取得">↻ 更新</button>
+          </div>
+          {weatherError && <p className="weather-alert" role="status">{weatherError}</p>}
           </div>
           <div className="panel-heading">NAVIGATION <span>01 — 03</span></div>
           <div className="guide">
