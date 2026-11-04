@@ -11,7 +11,7 @@ const formatUtc = (date: Date) =>
 
 export default function App() {
   const globeRef = useRef<EarthGlobeHandle>(null);
-  const [autoRotate, setAutoRotate] = useState(false);
+  const [autoRotate, setAutoRotate] = useState(true);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -30,12 +30,8 @@ export default function App() {
     globeRef.current?.focusCity(cityId);
   }, []);
 
-  // On first launch, show the initially selected city rather than empty ocean.
-  useEffect(() => {
-    if (isReady) globeRef.current?.focusCity(selectedCityId);
-    // Changes after initialization navigate via handleSelectCity (including reselecting a city).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady]);
+  // EarthGlobe starts aligned to Tokyo; no startup focus animation is needed.
+  // A focusCity() call here would otherwise disable OrbitControls.autoRotate.
   const handleError = useCallback((message: string) => {
     setError(message);
     setIsReady(false);

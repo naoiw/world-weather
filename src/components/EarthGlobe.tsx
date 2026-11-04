@@ -193,7 +193,14 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-    camera.position.set(0, 0, INITIAL_DISTANCE);
+    // Start facing the selected city without calling focusCity(), which pauses auto rotation.
+    const initialCity = CITIES.find((city) => city.id === selectedCityId) ?? CITIES[0];
+    const initialAzimuth = longitudeToAzimuth(initialCity.longitude);
+    camera.position.set(
+      INITIAL_DISTANCE * Math.cos(initialAzimuth),
+      0,
+      INITIAL_DISTANCE * Math.sin(initialAzimuth),
+    );
     cameraRef.current = camera;
 
     const controls = new OrbitControls(camera, renderer.domElement);
