@@ -250,7 +250,7 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
         controls.update();
         return;
       }
-      focusRef.current = { start: performance.now(), from, delta, duration: 1050 };
+      focusRef.current = { start: performance.now(), from, delta, duration: 2100 };
     },
   }), []);
 
@@ -297,9 +297,9 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
     controls.maxPolarAngle = Math.PI / 2;
     controls.minDistance = 3.5;
     controls.maxDistance = 8.5;
-    controls.rotateSpeed = 0.65;
+    controls.rotateSpeed = 0.325;
     controls.autoRotate = autoRotate;
-    controls.autoRotateSpeed = 0.45;
+    controls.autoRotateSpeed = 0.225;
     controlsRef.current = controls;
     const cancelFocus = () => { focusRef.current = null; };
     // User input always takes precedence over automatic city navigation.
