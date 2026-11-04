@@ -24,7 +24,7 @@ function readCache(): CachedWeather | null {
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
     const value = parsed as Partial<CachedWeather>;
-    if (value.version !== 1 || typeof value.savedAt !== 'number'
+    if (value.version !== 2 || typeof value.savedAt !== 'number'
       || !Number.isFinite(value.savedAt) || value.savedAt > Date.now()
       || !value.observations || typeof value.observations !== 'object') return null;
     if (Object.keys(value.observations).length === 0) return null;
