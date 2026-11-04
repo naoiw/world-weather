@@ -1,6 +1,9 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CITIES, cityLocalTime, type City } from '../lib/cities';
+import { geoToCartesian, isSurfaceVisible, subsolarPoint } from '../lib/astronomy';
+import { weatherDescription, type WeatherByCity } from '../lib/weather';
 
 export interface EarthGlobeHandle {
   resetView(): void;
@@ -10,57 +13,216 @@ export interface EarthGlobeHandle {
 
 interface EarthGlobeProps {
   autoRotate: boolean;
+  selectedCityId: string;
+  weather: WeatherByCity;
+  now: Date;
+  onSelectCity(cityId: string): void;
   onReady(): void;
   onError(message: string): void;
 }
 
-const EARTH_TEXTURE = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg';
-const BUMP_TEXTURE = 'https://unpkg.com/three-globe/example/img/earth-topology.png';
-const INITIAL_DISTANCE = 5.2;
+interface CityPin {
+  id: string;
+  px: number;
+  py: number;
+  cardX: number;
+  cardY: number;
+  side: 'left' | 'right';
+  distance: number;
+}
 
-function makeStarField(): THREE.Points {
-  const coordinates: number[] = [];
+const RADIUS = 1.55;
+const INITIAL_DISTANCE = 5.2;
+const IMAGE_BASE = 'https://unpkg.com/three-globe@2.45.2/example/img/';
+const DAY_IMAGE = IMAGE_BASE + 'earth-blue-marble.jpg';
+const NIGHT_IMAGE = IMAGE_BASE + 'earth-night.jpg';
+
+function createStars(): THREE.Points {
+  const positions: number[] = [];
   let seed = 41839;
-  const next = () => {
+  const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-
-  for (let index = 0; index < 1100; index += 1) {
-    const y = next() * 2 - 1;
-    const azimuth = next() * Math.PI * 2;
-    const radius = 22 + next() * 20;
-    const planar = Math.sqrt(1 - y * y);
-    coordinates.push(
-      Math.cos(azimuth) * planar * radius,
-      y * radius,
-      Math.sin(azimuth) * planar * radius,
-    );
+  for (let i = 0; i < 1100; i += 1) {
+    const y = random() * 2 - 1;
+    const a = random() * 2 * Math.PI;
+    const radius = 22 + random() * 20;
+    const p = Math.sqrt(1 - y * y);
+    positions.push(radius * p * Math.cos(a), radius * y, radius * p * Math.sin(a));
   }
-
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(coordinates, 3));
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  return new THREE.Points(geometry, new THREE.PointsMaterial({
+    color: 0xa5c8df,
+    size: 0.09,
+    transparent: true,
+    opacity: 0.8,
+    sizeAttenuation: true,
+    depthWrite: false,
+  }));
+}
 
-  return new THREE.Points(
-    geometry,
-    new THREE.PointsMaterial({
-      color: 0xa5c8df,
-      size: 0.09,
-      transparent: true,
-      opacity: 0.8,
-      sizeAttenuation: true,
-      depthWrite: false,
-    }),
+function createEarthMaterial(): THREE.ShaderMaterial {
+  const position = subsolarPoint(new Date());
+  const [x, y, z] = geoToCartesian(position.latitude, position.longitude);
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      dayMap: { value: null },
+      nightMap: { value: null },
+      hasDayMap: { value: false },
+      hasNightMap: { value: false },
+      sunDirection: { value: new THREE.Vector3(x, y, z) },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      varying vec3 vSphereNormal;
+      void main() {
+        vUv = uv;
+        vSphereNormal = normalize(normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D dayMap;
+      uniform sampler2D nightMap;
+      uniform bool hasDayMap;
+      uniform bool hasNightMap;
+      uniform vec3 sunDirection;
+      varying vec2 vUv;
+      varying vec3 vSphereNormal;
+      void main() {
+        float light = dot(normalize(vSphereNormal), normalize(sunDirection));
+        float dayAmount = smoothstep(-0.08, 0.14, light);
+        vec3 dayColor = hasDayMap ? texture2D(dayMap, vUv).rgb : vec3(0.13, 0.34, 0.55);
+        vec3 nightColor = hasNightMap ? texture2D(nightMap, vUv).rgb : vec3(0.015, 0.033, 0.065);
+        vec3 sunlit = dayColor * (0.68 + 0.46 * max(light, 0.0));
+        vec3 dark = nightColor * 0.88 + vec3(0.008, 0.014, 0.025);
+        vec3 finalColor = mix(dark, sunlit, dayAmount);
+        gl_FragColor = vec4(finalColor, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+}
+
+function createGlow(): { mesh: THREE.Mesh; geometry: THREE.SphereGeometry; material: THREE.ShaderMaterial } {
+  const geometry = new THREE.SphereGeometry(RADIUS + 0.15, 96, 64);
+  const material = new THREE.ShaderMaterial({
+    transparent: true,
+    side: THREE.BackSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    uniforms: { glowColor: { value: new THREE.Color('#36b8da') } },
+    vertexShader: `
+      varying vec3 vNormal;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 glowColor;
+      varying vec3 vNormal;
+      void main() {
+        float halo = pow(1.0 - abs(vNormal.z), 3.2);
+        gl_FragColor = vec4(glowColor, halo * 0.30);
+      }
+    `,
+  });
+  return { mesh: new THREE.Mesh(geometry, material), geometry, material };
+}
+
+function calculatePins(
+  camera: THREE.PerspectiveCamera,
+  width: number,
+  height: number,
+  selectedCityId: string,
+): CityPin[] {
+  const cameraPoint = camera.position.toArray();
+  const eligible = CITIES.flatMap((city) => {
+    const xyz = geoToCartesian(city.latitude, city.longitude, RADIUS + 0.008);
+    if (!isSurfaceVisible(xyz, cameraPoint, RADIUS)) return [];
+    const projected = new THREE.Vector3(...xyz).project(camera);
+    const px = (projected.x * 0.5 + 0.5) * width;
+    const py = (-projected.y * 0.5 + 0.5) * height;
+    if (px < 5 || px > width - 5 || py < 10 || py > height - 10) return [];
+    return [{
+      id: city.id,
+      px,
+      py,
+      distance: xyz[0] * cameraPoint[0] + xyz[1] * cameraPoint[1] + xyz[2] * cameraPoint[2],
+      side: px < width / 2 ? 'left' as const : 'right' as const,
+    }];
+  });
+
+  // Limit labels to prevent an unreadable cluster, preferring the central viewpoint.
+  eligible.sort((a, b) =>
+    (b.distance + (b.id === selectedCityId ? 1.2 : 0)) -
+    (a.distance + (a.id === selectedCityId ? 1.2 : 0)),
+  );
+  const maximum = width < 560 ? 3 : width < 790 ? 4 : 6;
+  const visible = eligible.slice(0, maximum);
+  const result: CityPin[] = [];
+  const cardWidth = width < 560 ? 136 : 164;
+  const cardHeight = width < 560 ? 70 : 78;
+  const left = visible.filter((pin) => pin.side === 'left').sort((a, b) => a.py - b.py);
+  const right = visible.filter((pin) => pin.side === 'right').sort((a, b) => a.py - b.py);
+
+  for (const group of [left, right]) {
+    group.forEach((pin, index) => {
+      const slotCenter = ((index + 1) * height) / (group.length + 1);
+      const cardY = Math.max(12, Math.min(height - cardHeight - 12, slotCenter - cardHeight / 2));
+      const cardX = pin.side === 'left' ? 12 : width - cardWidth - 12;
+      result.push({ ...pin, cardX, cardY });
+    });
+  }
+  return result;
+}
+
+function CityLabel({ pin, city, weather, now, selected, onSelect }: {
+  pin: CityPin;
+  city: City;
+  weather: WeatherByCity[typeof city.id] | undefined;
+  now: Date;
+  selected: boolean;
+  onSelect(): void;
+}) {
+  const condition = weather ? weatherDescription(weather.code) : null;
+  return (
+    <button
+      type="button"
+      className={`globe-city-label ${pin.side} ${selected ? 'selected' : ''}`}
+      style={{ left: pin.cardX, top: pin.cardY }}
+      onClick={onSelect}
+      title={`${city.name} の天気詳細`}
+    >
+      <span className="city-label-top">
+        <span className="city-label-name">{city.name}</span>
+        <span className="city-label-weather">{condition?.symbol ?? '·'}</span>
+      </span>
+      <span className="city-label-bottom">
+        <strong>{weather ? `${Math.round(weather.temperature)}°` : '—°'}</strong>
+        <span>{cityLocalTime(city, now)}</span>
+      </span>
+      <span className="city-label-humidity">{weather ? `湿度 ${Math.round(weather.humidity)}%` : '天気データなし'}</span>
+    </button>
   );
 }
 
 const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthGlobe(
-  { autoRotate, onReady, onError },
+  { autoRotate, selectedCityId, weather, now, onSelectCity, onReady, onError },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
+  const selectedIdRef = useRef(selectedCityId);
+  const [pins, setPins] = useState<CityPin[]>([]);
+  const [viewport, setViewport] = useState({ width: 1, height: 1 });
+
+  useEffect(() => { selectedIdRef.current = selectedCityId; }, [selectedCityId]);
 
   useImperativeHandle(ref, () => ({
     resetView() {
@@ -92,7 +254,6 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -103,6 +264,7 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
 
     let disposed = false;
     let frame = 0;
+    let lastPinUpdate = 0;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -129,92 +291,36 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
     controls.autoRotateSpeed = 0.45;
     controlsRef.current = controls;
 
-    scene.add(new THREE.AmbientLight(0x587796, 1.2));
-    const sunlight = new THREE.DirectionalLight(0xfff0d6, 3.1);
-    sunlight.position.set(5.5, 2.4, 6);
-    scene.add(sunlight);
-
-    const fill = new THREE.DirectionalLight(0x2b86c9, 0.7);
-    fill.position.set(-5, -1, -3);
-    scene.add(fill);
-
-    const earthGeometry = new THREE.SphereGeometry(1.55, 96, 64);
-    const earthMaterial = new THREE.MeshStandardMaterial({
-      color: 0x4a7da6,
-      roughness: 0.94,
-      metalness: 0,
-    });
-    scene.add(new THREE.Mesh(earthGeometry, earthMaterial));
-
-    // Fresnel halo: separate from the globe's texture and lighting.
-    const glowGeometry = new THREE.SphereGeometry(1.7, 96, 64);
-    const glowMaterial = new THREE.ShaderMaterial({
-      transparent: true,
-      side: THREE.BackSide,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      uniforms: { glowColor: { value: new THREE.Color('#36b8da') } },
-      vertexShader: `
-        varying vec3 vNormal;
-        void main() {
-          vNormal = normalize(normalMatrix * normal);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform vec3 glowColor;
-        varying vec3 vNormal;
-        void main() {
-          float halo = pow(1.0 - abs(vNormal.z), 3.2);
-          gl_FragColor = vec4(glowColor, halo * 0.30);
-        }
-      `,
-    });
-    scene.add(new THREE.Mesh(glowGeometry, glowMaterial));
-
-    const stars = makeStarField();
+    const geometry = new THREE.SphereGeometry(RADIUS, 96, 64);
+    const material = createEarthMaterial();
+    scene.add(new THREE.Mesh(geometry, material));
+    const glow = createGlow();
+    scene.add(glow.mesh);
+    const stars = createStars();
     scene.add(stars);
 
+    const textures: THREE.Texture[] = [];
     const loader = new THREE.TextureLoader();
-    let dayTexture: THREE.Texture | undefined;
-    let bumpTexture: THREE.Texture | undefined;
+    const loadImage = (url: string, name: 'day' | 'night') => {
+      loader.load(url, (texture) => {
+        if (disposed) { texture.dispose(); return; }
+        texture.colorSpace = THREE.SRGBColorSpace;
+        textures.push(texture);
+        material.uniforms[name === 'day' ? 'dayMap' : 'nightMap'].value = texture;
+        material.uniforms[name === 'day' ? 'hasDayMap' : 'hasNightMap'].value = true;
+      }, undefined, () => {
+        // Keep the solid-color fallback and continue rendering if CDN fails.
+      });
+    };
+    loadImage(DAY_IMAGE, 'day');
+    loadImage(NIGHT_IMAGE, 'night');
 
-    loader.load(
-      EARTH_TEXTURE,
-      (texture) => {
-        if (disposed) {
-          texture.dispose();
-          return;
-        }
-        dayTexture = texture;
-        dayTexture.colorSpace = THREE.SRGBColorSpace;
-        earthMaterial.map = dayTexture;
-        earthMaterial.color.set(0xffffff);
-        earthMaterial.needsUpdate = true;
-      },
-      undefined,
-      () => {
-        // Keep the blue fallback sphere if the remote texture is unavailable.
-      },
-    );
-
-    loader.load(
-      BUMP_TEXTURE,
-      (texture) => {
-        if (disposed) {
-          texture.dispose();
-          return;
-        }
-        bumpTexture = texture;
-        earthMaterial.bumpMap = bumpTexture;
-        earthMaterial.bumpScale = 0.035;
-        earthMaterial.needsUpdate = true;
-      },
-      undefined,
-      () => {
-        // Terrain relief is optional.
-      },
-    );
+    const updateSun = () => {
+      const sun = subsolarPoint(new Date());
+      material.uniforms.sunDirection.value.set(...geoToCartesian(sun.latitude, sun.longitude));
+    };
+    updateSun();
+    const sunTimer = window.setInterval(updateSun, 60_000);
 
     const resize = () => {
       if (disposed) return;
@@ -228,45 +334,78 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
+      setViewport({ width, height });
     };
-
     const observer = new ResizeObserver(resize);
     observer.observe(container);
     resize();
 
-    const animate = () => {
+    const animate = (frameTime: number) => {
       if (disposed) return;
       frame = window.requestAnimationFrame(animate);
       controls.update();
       renderer.render(scene, camera);
+      if (frameTime - lastPinUpdate > 130) {
+        lastPinUpdate = frameTime;
+        setPins(calculatePins(camera, Math.max(1, container.clientWidth),
+          Math.max(1, container.clientHeight), selectedIdRef.current));
+      }
     };
-    animate();
+    frame = window.requestAnimationFrame(animate);
     onReady();
 
     return () => {
       disposed = true;
       window.cancelAnimationFrame(frame);
+      window.clearInterval(sunTimer);
       observer.disconnect();
       controls.dispose();
       controlsRef.current = null;
       cameraRef.current = null;
-      earthGeometry.dispose();
-      earthMaterial.dispose();
-      glowGeometry.dispose();
-      glowMaterial.dispose();
+      geometry.dispose();
+      material.dispose();
+      glow.geometry.dispose();
+      glow.material.dispose();
       stars.geometry.dispose();
-      if (Array.isArray(stars.material)) stars.material.forEach((material) => material.dispose());
+      if (Array.isArray(stars.material)) stars.material.forEach((entry) => entry.dispose());
       else stars.material.dispose();
-      dayTexture?.dispose();
-      bumpTexture?.dispose();
+      textures.forEach((texture) => texture.dispose());
       renderer.dispose();
       renderer.domElement.remove();
     };
-    // The 3D scene is created once per mount. Rotation changes via the separate effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onError, onReady]);
+  }, [onReady, onError]); // Scene is retained when React weather/time state changes.
 
-  return <div ref={containerRef} className="globe-viewport" />;
+  return (
+    <div className="globe-wrap">
+      <div ref={containerRef} className="globe-viewport" />
+      <div className="globe-label-overlay" aria-label="地球儀上の都市と天気">
+        <svg className="globe-leaders" width={viewport.width} height={viewport.height}
+          viewBox={`0 0 ${viewport.width} ${viewport.height}`} aria-hidden="true">
+          {pins.map((pin) => {
+            const endX = pin.side === 'left' ? pin.cardX + (viewport.width < 560 ? 136 : 164) : pin.cardX;
+            const endY = pin.cardY + (viewport.width < 560 ? 35 : 39);
+            const elbow = pin.side === 'left' ? endX + 14 : endX - 14;
+            return (
+              <g key={pin.id} className={pin.id === selectedCityId ? 'leader-selected' : ''}>
+                <path d={`M${pin.px.toFixed(1)},${pin.py.toFixed(1)} L${elbow},${endY} L${endX},${endY}`} />
+                <circle cx={pin.px} cy={pin.py} r="4" />
+                <circle cx={pin.px} cy={pin.py} r="8" className="city-ring" />
+              </g>
+            );
+          })}
+        </svg>
+        {pins.map((pin) => {
+          const city = CITIES.find((entry) => entry.id === pin.id);
+          if (!city) return null;
+          return (
+            <CityLabel key={pin.id} pin={pin} city={city} now={now}
+              weather={weather[pin.id]} selected={pin.id === selectedCityId}
+              onSelect={() => onSelectCity(pin.id)} />
+          );
+        })}
+      </div>
+    </div>
+  );
 });
 
 export default EarthGlobe;
