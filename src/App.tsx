@@ -115,11 +115,11 @@ export default function App() {
             )}
           </div>
           <div className="weather-controls" aria-label="天気データの更新">
-          <div className="data-update">
-            <span>最終取得：{fetchedLabel} JST{isStale ? ' · 古いデータ' : ''}</span>
-            <button type="button" onClick={refresh} aria-label="天気情報を再取得">↻ 更新</button>
-          </div>
-          {weatherError && <p className="weather-alert" role="status">{weatherError}</p>}
+            <div className="data-update">
+              <span>最終取得：{fetchedLabel} JST{isStale ? ' · 古いデータ' : ''}</span>
+              <button type="button" onClick={refresh} aria-label="天気情報を再取得">↻ 更新</button>
+            </div>
+            {weatherError && <p className="weather-alert" role="status">{weatherError}</p>}
           </div>
           <div className="panel-heading">NAVIGATION <span>01 — 03</span></div>
           <div className="guide">
