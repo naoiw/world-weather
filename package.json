@@ -1,12 +1,13 @@
 {
   "name": "world-weather",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
     "build:pages:main": "tsc --noEmit && vite build --base=/world-weather/",
     "build:pages:develop": "tsc --noEmit && vite build --base=/world-weather/develop/"
   },
