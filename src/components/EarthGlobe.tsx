@@ -11,9 +11,6 @@ import {
 } from '../lib/globeLayout';
 
 export interface EarthGlobeHandle {
-  resetView(): void;
-  zoomIn(): void;
-  zoomOut(): void;
   focusCity(cityId: string): void;
 }
 
@@ -209,29 +206,6 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
   useEffect(() => { selectedIdRef.current = selectedCityId; }, [selectedCityId]);
 
   useImperativeHandle(ref, () => ({
-    resetView() {
-      if (!cameraRef.current || !controlsRef.current) return;
-      focusRef.current = null;
-      cameraRef.current.position.set(0, 0, INITIAL_DISTANCE);
-      controlsRef.current.target.set(0, 0, 0);
-      controlsRef.current.update();
-    },
-    zoomIn() {
-      const camera = cameraRef.current;
-      const controls = controlsRef.current;
-      if (!camera || !controls) return;
-      focusRef.current = null;
-      camera.position.setLength(Math.max(controls.minDistance, camera.position.length() * 0.85));
-      controls.update();
-    },
-    zoomOut() {
-      const camera = cameraRef.current;
-      const controls = controlsRef.current;
-      if (!camera || !controls) return;
-      focusRef.current = null;
-      camera.position.setLength(Math.min(controls.maxDistance, camera.position.length() * 1.18));
-      controls.update();
-    },
     focusCity(cityId: string) {
       const camera = cameraRef.current;
       const controls = controlsRef.current;

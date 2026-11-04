@@ -83,13 +83,19 @@ export default function App() {
           />
           {error && <div className="globe-message" role="alert">{error}</div>}
           {!isReady && !error && <div className="globe-message">地球儀を読み込んでいます…</div>}
-          <div className="globe-caption">
-            <span className="caption-line" />
-            <span>PLANET EARTH <small>/ SOLAR DAY · NIGHT</small></span>
-          </div>
         </section>
 
         <aside className="control-panel" aria-label="都市情報と地球儀の操作">
+          <button
+            type="button"
+            className={`rotation-toggle ${autoRotate ? 'active' : ''}`}
+            aria-pressed={autoRotate}
+            disabled={!isReady}
+            onClick={() => setAutoRotate((previous) => !previous)}
+          >
+            <span><span className="rotation-icon">{autoRotate ? 'Ⅱ' : '▶'}</span> AUTO ROTATE</span>
+            <span className="toggle-track"><span /></span>
+          </button>
           <div className="city-feature">
             <div className="city-feature-eyebrow">SELECTED CITY / LIVE</div>
             <label className="city-select-label" htmlFor="city-picker">表示都市</label>
@@ -153,46 +159,6 @@ export default function App() {
             </div>
             {weatherError && <p className="weather-alert" role="status">{weatherError}</p>}
           </div>
-          <div className="panel-heading">NAVIGATION <span>01 — 03</span></div>
-          <div className="guide">
-            <div className="guide-symbol">↔</div>
-            <div>
-              <strong>DRAG TO ROTATE</strong>
-              <p>ドラッグ・スワイプで左右に回転</p>
-            </div>
-          </div>
-          <div className="guide">
-            <div className="guide-symbol">⊕</div>
-            <div>
-              <strong>ZOOM</strong>
-              <p>ホイール・ピンチで拡大縮小</p>
-            </div>
-          </div>
-          <div className="control-divider" />
-          <div className="control-label">VIEW CONTROLS</div>
-          <div className="zoom-controls">
-            <button type="button" aria-label="拡大" title="拡大" disabled={!isReady}
-              onClick={() => globeRef.current?.zoomIn()}>+</button>
-            <button type="button" aria-label="縮小" title="縮小" disabled={!isReady}
-              onClick={() => globeRef.current?.zoomOut()}>−</button>
-            <button type="button" className="reset-button" disabled={!isReady}
-              onClick={() => globeRef.current?.resetView()}>↺ <span>RESET</span></button>
-          </div>
-          <button
-            type="button"
-            className={`rotation-toggle ${autoRotate ? 'active' : ''}`}
-            aria-pressed={autoRotate}
-            disabled={!isReady}
-            onClick={() => setAutoRotate((previous) => !previous)}
-          >
-            <span><span className="rotation-icon">{autoRotate ? 'Ⅱ' : '▶'}</span> AUTO ROTATE</span>
-            <span className="toggle-track"><span /></span>
-          </button>
-          <p className="control-footnote">
-            地球表面の昼夜は現在のUTCと太陽位置から計算しています。
-            天気はOpen-Meteoの気象モデルに基づく値です。
-            手動操作は自動フォーカスより優先します。
-          </p>
         </aside>
       </main>
 

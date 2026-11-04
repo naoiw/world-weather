@@ -53,31 +53,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .orbit-decoration { position: absolute; pointer-events: none; z-index: 0; border: 1px solid rgba(86, 176, 198, .095); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 .orbit-decoration-a { width: min(75%, 670px); aspect-ratio: 1; }
 .orbit-decoration-b { width: min(90%, 810px); aspect-ratio: 1; border-style: dashed; border-color: rgba(86, 176, 198, .07); }
-.globe-caption { pointer-events: none; position: absolute; z-index: 2; left: 50%; bottom: 5%; transform: translateX(-50%); display: grid; gap: 16px; justify-items: center; color: #b4d7df; white-space: nowrap; font-size: 10px; font-weight: 650; letter-spacing: .24em; }
-.globe-caption small { color: #607f96; font-size: inherit; }
-.caption-line { height: 27px; width: 1px; background: linear-gradient(transparent, #62c4cf); }
 .globe-message { position: absolute; z-index: 3; top: 48%; left: 50%; transform: translate(-50%, -50%); padding: 13px 20px; border: 1px solid rgba(102, 200, 205, .4); background: #091a2b; color: #d1eff1; white-space: nowrap; font-size: 12px; }
 .control-panel { z-index: 3; width: 100%; max-width: 268px; justify-self: end; padding: 28px 0 28px 24px; border-left: 1px solid rgba(126, 183, 203, .17); }
-.panel-heading { display: flex; justify-content: space-between; font-size: 11px; color: #e0f5fa; font-weight: 700; letter-spacing: .17em; margin-bottom: 43px; }
-.panel-heading span { color: #5d8da2; }
-.guide { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
-.guide-symbol { border: 1px solid #244151; width: 47px; height: 47px; flex: 0 0 47px; display: grid; place-items: center; font-size: 25px; font-weight: 200; color: #74cbd4; }
-.guide strong { font-size: 10px; font-weight: 700; color: #e3eff4; letter-spacing: .13em; }
-.guide p { font-size: 11px; line-height: 1.6; margin: 8px 0 0; color: #7f9bae; }
-.control-divider { height: 1px; background: rgba(126, 183, 203, .17); margin: 35px 0; }
-.control-label { color: #7e9eb0; font-size: 10px; letter-spacing: .18em; margin-bottom: 15px; font-weight: 700; }
-.zoom-controls { display: flex; gap: 8px; margin-bottom: 15px; }
-.zoom-controls button { border: 1px solid #274252; background: rgba(10, 34, 51, .55); color: #e4f7fc; height: 43px; width: 43px; cursor: pointer; font-size: 21px; transition: background .15s,border-color .15s; }
-.zoom-controls button:not(:disabled):hover, .rotation-toggle:not(:disabled):hover { border-color: #71c9c9; background: #153447; }
-.zoom-controls .reset-button { margin-left: auto; width: auto; padding: 0 12px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
-.reset-button span { font-size: 10px; font-weight: 700; letter-spacing: .15em; }
-.rotation-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 14px 12px; border: 1px solid #274252; background: rgba(10, 34, 51, .55); color: #e4f7fc; cursor: pointer; font-size: 10px; letter-spacing: .13em; font-weight: 700; }
+.rotation-toggle { width: 100%; min-height: 45px; display: flex; align-items: center; justify-content: space-between; padding: 14px 12px; margin-bottom: 20px; border: 1px solid #274252; background: rgba(10, 34, 51, .55); color: #e4f7fc; cursor: pointer; font-size: 10px; letter-spacing: .13em; font-weight: 700; }
 .rotation-icon { color: #76d2da; font-size: 12px; margin-right: 9px; }
 .toggle-track { position: relative; height: 17px; width: 31px; border-radius: 20px; background: #263f4f; transition: background .2s; }
 .toggle-track span { position: absolute; left: 3px; top: 3px; width: 11px; height: 11px; border-radius: 50%; background: #99b3c2; transition: transform .2s; }
 .rotation-toggle.active .toggle-track { background: #278f8e; }
 .rotation-toggle.active .toggle-track span { transform: translateX(14px); background: #e8fffb; }
-.control-footnote { margin: 25px 0 0; line-height: 1.9; color: #6f8da0; font-size: 11px; }
 .footer { height: 67px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-top: 1px solid rgba(164,202,220,.11); padding: 0 clamp(24px, 5vw, 86px); font-size: 10px; font-weight: 650; letter-spacing: .14em; color: #87a8b8; position: relative; z-index: 2; }
 .footer-muted { color: #56788b; }
 .footer-links { display: flex; gap: 16px; align-items: center; }
@@ -96,13 +79,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   .topbar-divider { display: none; }
   .main-stage { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "globe" "controls"; min-height: 0; padding-top: 20px; padding-bottom: 32px; }
   .globe-stage { grid-area: globe; margin: -12px -35px -15px; height: 75vw; min-height: 460px; max-height: 710px; }
-  .globe-caption { bottom: 1%; }
-  .control-panel { grid-area: controls; max-width: none; border-left: 0; border-top: 1px solid rgba(126,183,203,.17); display: grid; grid-template-columns: 1fr 1fr; column-gap: 26px; padding: 25px 0 0; }
-  .panel-heading { grid-column: 1 / -1; margin-bottom: 22px; }
-  .guide { margin-bottom: 20px; }
-  .control-divider { grid-column: 1 / -1; margin: 0 0 22px; }
-  .control-label { grid-column: 1 / -1; }
-  .control-footnote { margin: 3px 0; }
+  .control-panel { grid-area: controls; max-width: none; border-left: 0; border-top: 1px solid rgba(126,183,203,.17); display: block; padding: 25px 0 0; }
   .footer { flex-wrap: wrap; height: auto; min-height: 72px; padding-top: 20px; padding-bottom: 20px; line-height: 1.7; }
 }
 @media (max-width: 540px) {
@@ -112,19 +89,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   .topbar-right { font-size: 9px; letter-spacing: .08em; }
   .main-stage { display: flex; flex-direction: column; align-items: stretch; padding: 31px 20px 28px; }
   .globe-stage { margin: -34px -54px -10px; width: calc(100% + 108px); height: 460px; min-height: 0; }
-  .globe-caption { bottom: 2%; font-size: 9px; }
   .orbit-decoration-a { width: 75%; }
-  .control-panel { display: grid; grid-template-columns: 1fr 1fr; column-gap: 15px; padding-top: 20px; }
-  .panel-heading { margin-bottom: 19px; }
-  .guide { align-items: flex-start; gap: 8px; margin-bottom: 24px; }
-  .guide-symbol { width: 35px; height: 35px; flex-basis: 35px; font-size: 19px; }
-  .guide strong { font-size: 9px; letter-spacing: .07em; }
-  .guide p { font-size: 10px; margin-top: 5px; }
-  .zoom-controls { grid-column: 1 / -1; }
-  .zoom-controls button { flex: 0 0 47px; }
-  .zoom-controls .reset-button { flex: 0 0 auto; }
-  .rotation-toggle { grid-column: 1 / -1; }
-  .control-footnote { grid-column: 1 / -1; font-size: 10px; margin-top: 16px; }
+  .control-panel { display: block; padding-top: 20px; }
   .footer { padding: 18px 20px; font-size: 9px; gap: 7px; }
   .footer-links { gap: 9px; flex-wrap: wrap; }
 }
@@ -177,9 +143,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .data-update button { pointer-events: auto; cursor: pointer; color: #75e2da; border: 1px solid #316374; background: #0b2737; padding: 7px 10px; font-size: 10px; }
 .data-update button:hover { border-color: #9cf5e7; }
 .weather-alert { margin-top: 8px !important; font-size: 11px !important; color: #ffc5a6 !important; overflow-wrap: anywhere; }
-.globe-caption { z-index: 3; }
 @media (max-width: 900px) {
-  .control-panel .city-feature { grid-column: 1 / -1; margin: 0 0 27px; }
+  .control-panel .city-feature { margin: 0 0 27px; }
   .city-feature { display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; align-items: center; }
   .city-feature-eyebrow, .city-select-label, .city-picker { grid-column: 1; }
   .city-feature-time, .city-feature-temperature, .city-feature-meta, .city-feature-observed { grid-column: 2; }
@@ -239,12 +204,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     max-height: none;
     align-self: stretch;
   }
-  .globe-caption { bottom: 0; gap: 9px; font-size: 8px; opacity: .75; }
-  .caption-line { height: 16px; }
-  .guide { margin-bottom: 17px; }
   .city-feature { margin-bottom: 22px; }
-  .zoom-controls button { min-width: 45px; min-height: 45px; }
-  .rotation-toggle { min-height: 45px; }
 }
 @media (max-width: 429px) {
   .globe-city-label { width: 118px; height: 62px; padding: 5px 7px; gap: 2px; }
@@ -278,7 +238,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   margin: 8px 0 0;
 }
 @media (max-width: 900px) {
-  .weather-controls { grid-column: 1 / -1; margin: 0 0 24px; }
+  .weather-controls { margin: 0 0 24px; }
 }
 
 /* Extended weather details are confined to the selected-city panel. */
