@@ -60,7 +60,7 @@ export default function App() {
           <span>WORLD <strong>WEATHER</strong></span>
         </div>
         <div className="topbar-right">
-          <span className="topbar-stage">LIVE WEATHER · 16 CITIES</span>
+          <span className="topbar-stage">LIVE WEATHER · {CITIES.length} CITIES</span>
           <span className="topbar-divider" />
           <span className="utc-time"><span className="live-dot" /> {formatUtc(now)} UTC</span>
         </div>
@@ -161,7 +161,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        <span>WORLD WEATHER <span className="footer-muted">/ EXPERIMENTAL BUILD 0.4</span></span>
+        <span>WORLD WEATHER</span>
         <span className="footer-links">
           <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">WEATHER: OPEN-METEO ↗</a>
           <span className="footer-separator">·</span>

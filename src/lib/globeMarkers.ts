@@ -15,7 +15,7 @@ interface ProjectedPoint {
 
 /**
  * Return EVERY front-facing city marker with its projected screen position.
- * The complete 16-city registry is considered on every update. Backside
+ * The complete city registry is considered on every update. Backside
  * markers are hidden by Earth, but reappear when the view rotates.
  * No label-ranking or mobile count cap applies.
  */

@@ -37,7 +37,12 @@ test('parseWeather maps multiple current values and same-hour probability correc
   }));
   const result = parseWeather(data, CITIES);
   assert.equal(result.tokyo.temperature, 12);
-  assert.equal(result.auckland.temperature, 12 + CITIES.length - 1);
+  assert.equal(CITIES.length, 20);
+  assert.equal(result.auckland.temperature, 12 + CITIES.findIndex((city) => city.id === 'auckland'));
+  for (const id of ['bangkok', 'moscow', 'brasilia', 'manila']) {
+    assert.equal(result[id].temperature, 12 + CITIES.findIndex((city) => city.id === id));
+    assert.equal(result[id].precipitationProbability, 40);
+  }
   assert.equal(result.tokyo.observedAt, Date.parse('2026-11-04T10:15:00Z'));
   assert.equal(result.tokyo.apparentTemperature, 11);
   assert.equal(result.tokyo.windSpeed, 13.6);

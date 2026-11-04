@@ -5,6 +5,20 @@ import { geoToCartesian } from '../src/lib/astronomy.ts';
 import { projectVisibleCityMarkers } from '../src/lib/globeMarkers.ts';
 import { longitudeToAzimuth, shortestAngularDelta, easeInOutCubic } from '../src/lib/globeNavigation.ts';
 
+test('city registry has 20 unique entries and valid coordinates/timezones', () => {
+  assert.equal(CITIES.length, 20);
+  const ids = CITIES.map((city) => city.id);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const city of CITIES) {
+    assert.ok(city.latitude >= -90 && city.latitude <= 90, city.id);
+    assert.ok(city.longitude >= -180 && city.longitude <= 180, city.id);
+    assert.doesNotThrow(() => new Intl.DateTimeFormat('en-US', { timeZone: city.timeZone }), city.id);
+  }
+  for (const id of ['bangkok', 'moscow', 'brasilia', 'manila']) {
+    assert.ok(CITIES.find((city) => city.id === id), id);
+  }
+});
+
 test('camera focus is aligned with the globe texture and city longitude', () => {
   for (const longitude of [-179, -118.2437, -46.6333, 0, 2.3522, 139.6503, 179]) {
     const azimuth = longitudeToAzimuth(longitude);
@@ -46,7 +60,7 @@ function projector(camera: readonly number[], width: number, height: number) {
   };
 }
 
-test('all 16 cities are considered; every city becomes a marker when facing the camera', () => {
+test('all 20 cities are considered; every city becomes a marker when facing the camera', () => {
   const visibleIds = new Set<string>();
   const width = 900;
   const height = 900;
@@ -62,12 +76,12 @@ test('all 16 cities are considered; every city becomes a marker when facing the 
 });
 
 test('front-facing markers are not capped to 2–6 or ranked like old labels', () => {
-  const cities = Array.from({ length: 16 }, (_, i) => ({
-    id: `test-${i}`, latitude: (i - 8) * 2, longitude: (i - 8) * 2,
+  const cities = Array.from({ length: 20 }, (_, i) => ({
+    id: `test-${i}`, latitude: (i - 10) * 2, longitude: (i - 10) * 2,
   }));
   const markers = projectVisibleCityMarkers(cities, [5, 0, 0], 1.55, 800, 600,
     () => ({ x: 0, y: 0, z: 0 }));
-  assert.equal(markers.length, 16);
+  assert.equal(markers.length, 20);
 });
 
 test('backside markers are hidden and reappear after rotation', () => {

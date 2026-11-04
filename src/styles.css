@@ -175,7 +175,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   color: #eaf8fa; background: #0c263a; font: inherit; font-size: 12px;
   cursor: pointer;
 }
-.city-feature-time { margin-top: 13px; font-size: 12px; color: #b9e3e5; font-variant-numeric: tabular-nums; }
+.city-feature-time { margin-top: 13px; font-size: 18px; line-height: 1.4; font-weight: 600; color: #b9e3e5; font-variant-numeric: tabular-nums; }
 .city-feature-time span { display: block; color: #658ea2; font-size: 9px; letter-spacing: .13em; margin-top: 3px; }
 .city-feature-temperature { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; }
 .city-feature-temperature strong { font-size: 44px; font-weight: 400; letter-spacing: -.055em; line-height: 1.2; }
