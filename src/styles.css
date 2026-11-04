@@ -99,31 +99,74 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 }
 
 
-/* World weather data layer: labels and city detail. */
+/* 16 geographic city markers: the globe shows markers only, never callouts. */
 .globe-wrap { position: absolute; inset: 0; z-index: 1; }
-.globe-label-overlay { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
-.globe-leaders { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
-.globe-leaders path { fill: none; stroke: rgba(130, 216, 224, .56); stroke-width: 1.1; }
-.globe-leaders circle { fill: #80f4e7; stroke: #0e2736; stroke-width: 1.5; }
-.globe-leaders .city-ring { fill: none; stroke: rgba(95, 220, 220, .45); stroke-width: 1; }
-.globe-leaders .leader-selected path { stroke: #a3fff1; stroke-width: 1.5; }
-.globe-city-label {
-  position: absolute; width: 164px; height: 78px; border: 1px solid rgba(123, 204, 220, .31);
-  border-left: 2px solid rgba(89, 190, 201, .75);
-  background: linear-gradient(110deg, rgba(6, 23, 38, .92), rgba(12, 40, 58, .9));
-  color: #eaf8fc; padding: 8px 11px; text-align: left;
-  display: flex; flex-direction: column; align-items: stretch; gap: 3px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, .25);
-  pointer-events: auto; cursor: pointer; backdrop-filter: blur(7px);
-  transition: border-color .18s, background .18s;
+.globe-marker-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
 }
-.globe-city-label:hover, .globe-city-label.selected { border-color: #8cf3e6; background: rgba(14, 56, 69, .96); }
-.city-label-top, .city-label-bottom { display: flex; align-items: center; justify-content: space-between; gap: 7px; }
-.city-label-name { font-size: 11px; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.city-label-weather { color: #80ece2; font-size: 15px; line-height: 1; }
-.city-label-bottom strong { font-size: 20px; line-height: 1; font-weight: 500; letter-spacing: -.04em; }
-.city-label-bottom span { font-size: 9px; color: #a8c4ce; white-space: nowrap; }
-.city-label-humidity { font-size: 9px; color: #83a7b8; }
+.globe-marker {
+  --marker-color: #82e7df;
+  position: absolute;
+  z-index: 1;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.globe-marker::before,
+.globe-marker::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.globe-marker::before {
+  width: 9px;
+  height: 9px;
+  background: var(--marker-color);
+  border: 1px solid #103047;
+  box-shadow: 0 0 10px var(--marker-color), 0 0 0 1px rgba(0, 0, 0, .4);
+}
+.globe-marker::after {
+  width: 17px;
+  height: 17px;
+  border: 1px solid var(--marker-color);
+  opacity: .73;
+}
+.globe-marker:hover::after,
+.globe-marker:focus-visible::after {
+  width: 23px;
+  height: 23px;
+  opacity: 1;
+}
+.globe-marker.selected {
+  --marker-color: #ffbb66;
+  z-index: 3;
+}
+.globe-marker.selected::before {
+  width: 12px;
+  height: 12px;
+  box-shadow: 0 0 14px rgba(255, 187, 102, .85), 0 0 0 2px rgba(255, 187, 102, .22);
+}
+.globe-marker.selected::after { width: 23px; height: 23px; opacity: 1; }
+.globe-marker:focus-visible { outline-offset: -2px; }
+@media (max-width: 540px) {
+  .globe-marker { width: 34px; height: 34px; }
+}
+
 .city-feature { margin-bottom: 33px; padding: 15px 14px 17px; border: 1px solid rgba(107, 202, 211, .31); background: linear-gradient(160deg, rgba(16, 61, 80, .4), rgba(6, 20, 33, .75)); }
 .city-feature-eyebrow { color: #83dcd8; font-size: 9px; letter-spacing: .15em; font-weight: 700; margin-bottom: 15px; }
 .city-select-label { display: block; font-size: 10px; color: #7c9dad; margin-bottom: 6px; }
@@ -154,10 +197,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   .city-feature-observed { grid-row: 5; }
 }
 @media (max-width: 540px) {
-  .globe-city-label { width: 136px; height: 70px; padding: 6px 8px; }
-  .city-label-name { font-size: 10px; }
-  .city-label-bottom strong { font-size: 18px; }
-  .city-label-bottom span, .city-label-humidity { font-size: 8px; }
   .control-panel .city-feature { display: block; }
   .city-feature-time { margin-top: 12px; }
   .city-feature-temperature { margin-top: 8px; }
@@ -166,36 +205,15 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   .footer-links { row-gap: 8px; }
 }
 
-/* Focus navigation and deterministic label layout. Sizes match src/lib/globeLayout.ts. */
+/* The city picker explains how marker selection moves the globe. */
 .city-focus-note {
   margin: 9px 0 0;
   font-size: 10px;
   line-height: 1.6;
   color: #83aaae;
 }
-.globe-city-label {
-  border-color: rgba(126, 212, 222, .4);
-  border-radius: 3px;
-  box-shadow: 0 5px 22px rgba(2, 7, 13, .48);
-}
-.globe-city-label.selected {
-  box-shadow: 0 0 0 1px rgba(106, 244, 219, .24), 0 9px 29px rgba(0, 0, 0, .45);
-}
-.globe-leaders path {
-  stroke: rgba(127, 209, 220, .6);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-@media (max-width: 850px) {
-  .globe-city-label { width: 152px; height: 74px; }
-}
-@media (max-width: 620px) {
-  .globe-city-label { width: 132px; height: 70px; padding: 7px 9px; }
-  .city-label-name { font-size: 10px; }
-  .city-label-bottom strong { font-size: 18px; }
-}
 @media (max-width: 540px) {
-  /* Keep callouts and tap targets inside the viewport: previously 108px overflowed. */
+  /* Keep city markers and their touch targets inside the mobile viewport. */
   .globe-stage {
     margin: -18px -20px 5px;
     width: calc(100% + 40px);
@@ -207,11 +225,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   .city-feature { margin-bottom: 22px; }
 }
 @media (max-width: 429px) {
-  .globe-city-label { width: 118px; height: 62px; padding: 5px 7px; gap: 2px; }
-  .city-label-name { font-size: 9px; }
-  .city-label-bottom strong { font-size: 17px; }
-  .city-label-bottom span, .city-label-humidity { font-size: 8px; }
-  .globe-city-label .city-label-weather { font-size: 13px; }
   .city-feature-temperature strong { font-size: 40px; }
   .footer { overflow-wrap: anywhere; }
 }
