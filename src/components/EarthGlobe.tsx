@@ -4,11 +4,17 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CITIES, cityLocalTime, type City } from '../lib/cities';
 import { geoToCartesian, isSurfaceVisible, subsolarPoint } from '../lib/astronomy';
 import { weatherDescription, type WeatherByCity } from '../lib/weather';
+import {
+  easeInOutCubic, labelDimensions, layoutCityLabels,
+  longitudeToAzimuth, shortestAngularDelta,
+  type LabelCandidate, type PlacedLabel,
+} from '../lib/globeLayout';
 
 export interface EarthGlobeHandle {
   resetView(): void;
   zoomIn(): void;
   zoomOut(): void;
+  focusCity(cityId: string): void;
 }
 
 interface EarthGlobeProps {
@@ -21,14 +27,11 @@ interface EarthGlobeProps {
   onError(message: string): void;
 }
 
-interface CityPin {
-  id: string;
-  px: number;
-  py: number;
-  cardX: number;
-  cardY: number;
-  side: 'left' | 'right';
-  distance: number;
+interface CameraTransition {
+  start: number;
+  from: number;
+  delta: number;
+  duration: number;
 }
 
 const RADIUS = 1.55;
@@ -139,50 +142,30 @@ function calculatePins(
   width: number,
   height: number,
   selectedCityId: string,
-): CityPin[] {
+  previous: readonly PlacedLabel[],
+): PlacedLabel[] {
   const cameraPoint = camera.position.toArray();
-  const eligible = CITIES.flatMap((city) => {
+  const cameraLength = camera.position.length();
+  const candidates: LabelCandidate[] = CITIES.flatMap((city) => {
     const xyz = geoToCartesian(city.latitude, city.longitude, RADIUS + 0.008);
     if (!isSurfaceVisible(xyz, cameraPoint, RADIUS)) return [];
-    const projected = new THREE.Vector3(...xyz).project(camera);
-    const px = (projected.x * 0.5 + 0.5) * width;
-    const py = (-projected.y * 0.5 + 0.5) * height;
-    if (px < 5 || px > width - 5 || py < 10 || py > height - 10) return [];
+    const point = new THREE.Vector3(...xyz).project(camera);
+    const x = (point.x * 0.5 + 0.5) * width;
+    const y = (-point.y * 0.5 + 0.5) * height;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
     return [{
       id: city.id,
-      px,
-      py,
-      distance: xyz[0] * cameraPoint[0] + xyz[1] * cameraPoint[1] + xyz[2] * cameraPoint[2],
-      side: px < width / 2 ? 'left' as const : 'right' as const,
+      x,
+      y,
+      depth: (xyz[0] * cameraPoint[0] + xyz[1] * cameraPoint[1]
+        + xyz[2] * cameraPoint[2]) / cameraLength,
     }];
   });
-
-  // Limit labels to prevent an unreadable cluster, preferring the central viewpoint.
-  eligible.sort((a, b) =>
-    (b.distance + (b.id === selectedCityId ? 1.2 : 0)) -
-    (a.distance + (a.id === selectedCityId ? 1.2 : 0)),
-  );
-  const maximum = width < 560 ? 3 : width < 790 ? 4 : 6;
-  const visible = eligible.slice(0, maximum);
-  const result: CityPin[] = [];
-  const cardWidth = width < 560 ? 136 : 164;
-  const cardHeight = width < 560 ? 70 : 78;
-  const left = visible.filter((pin) => pin.side === 'left').sort((a, b) => a.py - b.py);
-  const right = visible.filter((pin) => pin.side === 'right').sort((a, b) => a.py - b.py);
-
-  for (const group of [left, right]) {
-    group.forEach((pin, index) => {
-      const slotCenter = ((index + 1) * height) / (group.length + 1);
-      const cardY = Math.max(12, Math.min(height - cardHeight - 12, slotCenter - cardHeight / 2));
-      const cardX = pin.side === 'left' ? 12 : width - cardWidth - 12;
-      result.push({ ...pin, cardX, cardY });
-    });
-  }
-  return result;
+  return layoutCityLabels(candidates, width, height, selectedCityId, previous);
 }
 
 function CityLabel({ pin, city, weather, now, selected, onSelect }: {
-  pin: CityPin;
+  pin: PlacedLabel;
   city: City;
   weather: WeatherByCity[typeof city.id] | undefined;
   now: Date;
@@ -219,7 +202,8 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const selectedIdRef = useRef(selectedCityId);
-  const [pins, setPins] = useState<CityPin[]>([]);
+  const [pins, setPins] = useState<PlacedLabel[]>([]);
+  const focusRef = useRef<CameraTransition | null>(null);
   const [viewport, setViewport] = useState({ width: 1, height: 1 });
 
   useEffect(() => { selectedIdRef.current = selectedCityId; }, [selectedCityId]);
@@ -227,6 +211,7 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
   useImperativeHandle(ref, () => ({
     resetView() {
       if (!cameraRef.current || !controlsRef.current) return;
+      focusRef.current = null;
       cameraRef.current.position.set(0, 0, INITIAL_DISTANCE);
       controlsRef.current.target.set(0, 0, 0);
       controlsRef.current.update();
@@ -235,6 +220,7 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
       const camera = cameraRef.current;
       const controls = controlsRef.current;
       if (!camera || !controls) return;
+      focusRef.current = null;
       camera.position.setLength(Math.max(controls.minDistance, camera.position.length() * 0.85));
       controls.update();
     },
@@ -242,13 +228,37 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
       const camera = cameraRef.current;
       const controls = controlsRef.current;
       if (!camera || !controls) return;
+      focusRef.current = null;
       camera.position.setLength(Math.min(controls.maxDistance, camera.position.length() * 1.18));
       controls.update();
+    },
+    focusCity(cityId: string) {
+      const camera = cameraRef.current;
+      const controls = controlsRef.current;
+      const city = CITIES.find((entry) => entry.id === cityId);
+      if (!camera || !controls || !city) return;
+      focusRef.current = null;
+      controls.autoRotate = false;
+      controls.update();
+      const from = Math.atan2(camera.position.z, camera.position.x);
+      const target = longitudeToAzimuth(city.longitude);
+      const delta = shortestAngularDelta(from, target);
+      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+      if (reducedMotion || Math.abs(delta) < 0.0005) {
+        const radius = camera.position.length();
+        camera.position.set(radius * Math.cos(target), 0, radius * Math.sin(target));
+        controls.update();
+        return;
+      }
+      focusRef.current = { start: performance.now(), from, delta, duration: 1050 };
     },
   }), []);
 
   useEffect(() => {
-    if (controlsRef.current) controlsRef.current.autoRotate = autoRotate;
+    if (controlsRef.current) {
+      if (autoRotate) focusRef.current = null;
+      controlsRef.current.autoRotate = autoRotate;
+    }
   }, [autoRotate]);
 
   useEffect(() => {
@@ -265,6 +275,7 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
     let disposed = false;
     let frame = 0;
     let lastPinUpdate = 0;
+    let previousPins: PlacedLabel[] = [];
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -290,6 +301,9 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
     controls.autoRotate = autoRotate;
     controls.autoRotateSpeed = 0.45;
     controlsRef.current = controls;
+    const cancelFocus = () => { focusRef.current = null; };
+    // User input always takes precedence over automatic city navigation.
+    controls.addEventListener('start', cancelFocus);
 
     const geometry = new THREE.SphereGeometry(RADIUS, 96, 64);
     const material = createEarthMaterial();
@@ -344,11 +358,33 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
       if (disposed) return;
       frame = window.requestAnimationFrame(animate);
       controls.update();
+      const transition = focusRef.current;
+      if (transition) {
+        const progress = Math.min(1, (frameTime - transition.start) / transition.duration);
+        const azimuth = transition.from + transition.delta * easeInOutCubic(progress);
+        const radius = camera.position.length();
+        camera.position.set(radius * Math.cos(azimuth), 0, radius * Math.sin(azimuth));
+        controls.update();
+        if (progress >= 1) focusRef.current = null;
+      }
       renderer.render(scene, camera);
       if (frameTime - lastPinUpdate > 130) {
         lastPinUpdate = frameTime;
-        setPins(calculatePins(camera, Math.max(1, container.clientWidth),
-          Math.max(1, container.clientHeight), selectedIdRef.current));
+        const next = calculatePins(camera, Math.max(1, container.clientWidth),
+          Math.max(1, container.clientHeight), selectedIdRef.current, previousPins);
+        // Avoid React re-renders while the camera and labels are stationary.
+        const unchanged = next.length === previousPins.length && next.every((pin, index) => {
+          const prior = previousPins[index];
+          return pin.id === prior.id && pin.side === prior.side
+            && Math.abs(pin.x - prior.x) < 0.6
+            && Math.abs(pin.y - prior.y) < 0.6
+            && Math.abs(pin.cardX - prior.cardX) < 0.6
+            && Math.abs(pin.cardY - prior.cardY) < 0.6;
+        });
+        if (!unchanged) {
+          previousPins = next;
+          setPins(next);
+        }
       }
     };
     frame = window.requestAnimationFrame(animate);
@@ -359,6 +395,8 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
       window.cancelAnimationFrame(frame);
       window.clearInterval(sunTimer);
       observer.disconnect();
+      controls.removeEventListener('start', cancelFocus);
+      focusRef.current = null;
       controls.dispose();
       controlsRef.current = null;
       cameraRef.current = null;
@@ -375,6 +413,8 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
     };
   }, [onReady, onError]); // Scene is retained when React weather/time state changes.
 
+  const { cardWidth, cardHeight } = labelDimensions(viewport.width);
+
   return (
     <div className="globe-wrap">
       <div ref={containerRef} className="globe-viewport" />
@@ -382,14 +422,14 @@ const EarthGlobe = forwardRef<EarthGlobeHandle, EarthGlobeProps>(function EarthG
         <svg className="globe-leaders" width={viewport.width} height={viewport.height}
           viewBox={`0 0 ${viewport.width} ${viewport.height}`} aria-hidden="true">
           {pins.map((pin) => {
-            const endX = pin.side === 'left' ? pin.cardX + (viewport.width < 560 ? 136 : 164) : pin.cardX;
-            const endY = pin.cardY + (viewport.width < 560 ? 35 : 39);
+            const endX = pin.side === 'left' ? pin.cardX + cardWidth : pin.cardX;
+            const endY = pin.cardY + cardHeight / 2;
             const elbow = pin.side === 'left' ? endX + 14 : endX - 14;
             return (
               <g key={pin.id} className={pin.id === selectedCityId ? 'leader-selected' : ''}>
-                <path d={`M${pin.px.toFixed(1)},${pin.py.toFixed(1)} L${elbow},${endY} L${endX},${endY}`} />
-                <circle cx={pin.px} cy={pin.py} r="4" />
-                <circle cx={pin.px} cy={pin.py} r="8" className="city-ring" />
+                <path d={`M${pin.x.toFixed(1)},${pin.y.toFixed(1)} L${elbow},${endY} L${endX},${endY}`} />
+                <circle cx={pin.x} cy={pin.y} r="4" />
+                <circle cx={pin.x} cy={pin.y} r="8" className="city-ring" />
               </g>
             );
           })}
