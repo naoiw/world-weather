@@ -5,12 +5,17 @@ export interface GeoPoint {
   longitude: number;
 }
 
-/** Earth-centered Cartesian coordinates, with +Y north and +X at 0° longitude. */
+/**
+ * Convert geographic coordinates to Three.js SphereGeometry world coordinates.
+ * Equirectangular globe textures put 0° longitude at u = 0.5 (+X),
+ * +90° east at u = 0.75 (-Z), and -90° west at u = 0.25 (+Z).
+ * Do not flip the sign of Z: city labels AND the solar terminator depend on it.
+ */
 export function geoToCartesian(latitude: number, longitude: number, radius = 1): [number, number, number] {
   const lat = latitude * DEG;
   const lon = longitude * DEG;
   const cosLat = Math.cos(lat);
-  return [radius * cosLat * Math.cos(lon), radius * Math.sin(lat), radius * cosLat * Math.sin(lon)];
+  return [radius * cosLat * Math.cos(lon), radius * Math.sin(lat), -radius * cosLat * Math.sin(lon)];
 }
 
 /** Approximate subsolar point using NOAA's fractional-year equations.
