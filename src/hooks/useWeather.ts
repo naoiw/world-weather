@@ -12,7 +12,7 @@ import {
 type WeatherStatus = 'loading' | 'ready' | 'error';
 
 interface CachedWeather {
-  version: 2;
+  version: 3;
   savedAt: number;
   observations: WeatherByCity;
 }
@@ -24,7 +24,7 @@ function readCache(): CachedWeather | null {
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
     const value = parsed as Partial<CachedWeather>;
-    if (value.version !== 2 || typeof value.savedAt !== 'number'
+    if (value.version !== 3 || typeof value.savedAt !== 'number'
       || !Number.isFinite(value.savedAt) || value.savedAt > Date.now()
       || !value.observations || typeof value.observations !== 'object') return null;
     if (Object.keys(value.observations).length === 0) return null;
@@ -62,7 +62,7 @@ export function useWeather() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const observations = parseWeather(await response.json() as unknown, CITIES);
         if (disposed) return;
-        const updated = { version: 2 as const, observations, savedAt: Date.now() };
+        const updated = { version: 3 as const, observations, savedAt: Date.now() };
         cacheRef.current = updated;
         setCache(updated);
         setStatus('ready');

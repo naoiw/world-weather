@@ -43,7 +43,7 @@ interface ForecastResponse {
 export const WEATHER_CACHE_MS = 20 * 60 * 1000;
 export const WEATHER_REFRESH_MS = 30 * 60 * 1000;
 // The response schema changed: invalidate previously cached entries on deployment.
-export const WEATHER_CACHE_KEY = 'world-weather-open-meteo-v2';
+export const WEATHER_CACHE_KEY = 'world-weather-open-meteo-v3';
 
 export function forecastUrl(cities: readonly City[]): string {
   const url = new URL('https://api.open-meteo.com/v1/forecast');

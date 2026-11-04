@@ -5,8 +5,8 @@ import { geoToCartesian } from '../src/lib/astronomy.ts';
 import { projectVisibleCityMarkers } from '../src/lib/globeMarkers.ts';
 import { longitudeToAzimuth, shortestAngularDelta, easeInOutCubic } from '../src/lib/globeNavigation.ts';
 
-test('city registry has 20 unique entries and valid coordinates/timezones', () => {
-  assert.equal(CITIES.length, 20);
+test('city registry has 24 unique entries and valid coordinates/timezones', () => {
+  assert.equal(CITIES.length, 24);
   const ids = CITIES.map((city) => city.id);
   assert.equal(new Set(ids).size, ids.length);
   for (const city of CITIES) {
@@ -14,7 +14,7 @@ test('city registry has 20 unique entries and valid coordinates/timezones', () =
     assert.ok(city.longitude >= -180 && city.longitude <= 180, city.id);
     assert.doesNotThrow(() => new Intl.DateTimeFormat('en-US', { timeZone: city.timeZone }), city.id);
   }
-  for (const id of ['bangkok', 'moscow', 'brasilia', 'manila']) {
+  for (const id of ['bangkok', 'moscow', 'brasilia', 'manila', 'honolulu', 'hagatna', 'taipei', 'hong-kong']) {
     assert.ok(CITIES.find((city) => city.id === id), id);
   }
 });
@@ -60,7 +60,7 @@ function projector(camera: readonly number[], width: number, height: number) {
   };
 }
 
-test('all 20 cities are considered; every city becomes a marker when facing the camera', () => {
+test('all 24 cities are considered; every city becomes a marker when facing the camera', () => {
   const visibleIds = new Set<string>();
   const width = 900;
   const height = 900;
@@ -76,12 +76,12 @@ test('all 20 cities are considered; every city becomes a marker when facing the 
 });
 
 test('front-facing markers are not capped to 2–6 or ranked like old labels', () => {
-  const cities = Array.from({ length: 20 }, (_, i) => ({
-    id: `test-${i}`, latitude: (i - 10) * 2, longitude: (i - 10) * 2,
+  const cities = Array.from({ length: 24 }, (_, i) => ({
+    id: `test-${i}`, latitude: (i - 12) * 2, longitude: (i - 12) * 2,
   }));
   const markers = projectVisibleCityMarkers(cities, [5, 0, 0], 1.55, 800, 600,
     () => ({ x: 0, y: 0, z: 0 }));
-  assert.equal(markers.length, 20);
+  assert.equal(markers.length, 24);
 });
 
 test('backside markers are hidden and reappear after rotation', () => {
