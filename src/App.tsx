@@ -24,6 +24,18 @@ export default function App() {
   }, []);
 
   const handleReady = useCallback(() => setIsReady(true), []);
+  const handleSelectCity = useCallback((cityId: string) => {
+    setSelectedCityId(cityId);
+    setAutoRotate(false);
+    globeRef.current?.focusCity(cityId);
+  }, []);
+
+  // On first launch, show the initially selected city rather than empty ocean.
+  useEffect(() => {
+    if (isReady) globeRef.current?.focusCity(selectedCityId);
+    // Changes after initialization navigate via handleSelectCity (including reselecting a city).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady]);
   const handleError = useCallback((message: string) => {
     setError(message);
     setIsReady(false);
@@ -59,7 +71,7 @@ export default function App() {
           <div className="eyebrow"><span className="eyebrow-line" /> WORLD VIEW / 002</div>
           <h1 id="page-title">World<br /><span>Weather.</span></h1>
           <p>世界の天気を、地球儀から。</p>
-          <p className="intro-note">地球を回すと、手前の都市の天気が見えてきます。</p>
+          <p className="intro-note">都市を選ぶと、地球儀がその場所へ回転します。</p>
           <div className="stage-status">
             <span className="status-pin" />
             <div>
@@ -86,7 +98,7 @@ export default function App() {
             selectedCityId={selectedCityId}
             weather={observations}
             now={now}
-            onSelectCity={setSelectedCityId}
+            onSelectCity={handleSelectCity}
             onReady={handleReady}
             onError={handleError}
           />
@@ -103,9 +115,10 @@ export default function App() {
             <div className="city-feature-eyebrow">SELECTED CITY / LIVE</div>
             <label className="city-select-label" htmlFor="city-picker">表示都市</label>
             <select id="city-picker" className="city-picker" value={selectedCityId}
-              onChange={(event) => setSelectedCityId(event.target.value)}>
+              onChange={(event) => handleSelectCity(event.target.value)}>
               {CITIES.map((city) => <option key={city.id} value={city.id}>{city.name} · {city.country}</option>)}
             </select>
+            <p className="city-focus-note">都市を選択すると、その経度が正面へ移動します。</p>
             <div className="city-feature-time">{cityLocalTime(selectedCity, now)} <span>LOCAL TIME</span></div>
             <div className="city-feature-temperature">
               <strong>{selectedWeather ? `${selectedWeather.temperature.toFixed(1)}°` : '—°'}</strong>
@@ -160,12 +173,13 @@ export default function App() {
           <p className="control-footnote">
             地球表面の昼夜は現在のUTCと太陽位置から計算しています。
             天気はOpen-Meteoの気象モデルに基づく値です。
+            手動操作は自動フォーカスより優先します。
           </p>
         </aside>
       </main>
 
       <footer className="footer">
-        <span>WORLD WEATHER <span className="footer-muted">/ EXPERIMENTAL BUILD 0.2</span></span>
+        <span>WORLD WEATHER <span className="footer-muted">/ EXPERIMENTAL BUILD 0.3</span></span>
         <span className="footer-links">
           <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">WEATHER: OPEN-METEO ↗</a>
           <span className="footer-separator">·</span>
