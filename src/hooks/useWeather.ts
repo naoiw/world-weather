@@ -12,7 +12,7 @@ import {
 type WeatherStatus = 'loading' | 'ready' | 'error';
 
 interface CachedWeather {
-  version: 1;
+  version: 2;
   savedAt: number;
   observations: WeatherByCity;
 }
@@ -62,7 +62,7 @@ export function useWeather() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const observations = parseWeather(await response.json() as unknown, CITIES);
         if (disposed) return;
-        const updated = { version: 1 as const, observations, savedAt: Date.now() };
+        const updated = { version: 2 as const, observations, savedAt: Date.now() };
         cacheRef.current = updated;
         setCache(updated);
         setStatus('ready');
