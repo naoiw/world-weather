@@ -13,10 +13,14 @@
 ## Phase 2：都市と天気（実装済み）
 
 - 16都市の座標とIANAタイムゾーンを `src/lib/cities.ts` で一元管理。
-- Open-MeteoのForecast APIへ緯度経度を配列で渡し、`current=temperature_2m,relative_humidity_2m,weather_code,is_day`を取得する。
+- Open-MeteoのForecast APIへ緯度経度を配列で渡し、`current=temperature_2m,relative_humidity_2m,weather_code,is_day,apparent_temperature,wind_speed_10m,wind_direction_10m,precipitation,cloud_cover`を取得する。
+- 同じAPIリクエストで `hourly=precipitation_probability` を取得。各都市の `current.time` と同一UTC時間帯の1時間予報を選び、値がない場合は `null` にする。
+- 体感温度（°C）、風速（km/h）、風向（北・北東等）、降水量（mm）、雲量（%）、降水確率（%）は選択都市の詳細欄にのみ表示。
 - リクエスト時の`timezone=GMT`で観測時刻をUTCとして解釈。
 - 20分間有効なセッションキャッシュ、30分ごとの再取得、タブ復帰時の更新と手動更新。
+- 気象データ構造の変更に伴いキャッシュのバージョンを2へ更新し、旧キャッシュの表示を防止。
 - 天気の取得失敗時はエラーを表示。取得済みデータは保持し、架空の気象値で埋めない。
+- 追加気象値は個別に数値・範囲を検証し、欠損しても基本データは表示する。0と欠損を区別する。
 - 地球儀の回転とズームに合わせて都市座標を投影。地球の裏側や地平線の向こうにある都市ラベルを隠す。
 - 経度と `SphereGeometry` のUVを一致させる：本初期姿勢では経度0°＝+X、東経90°＝-Z、西経90°＝+Z。都市マーカーと太陽方向で共通変換を使い、回帰テストで照合。
 - 最大6都市を引き出し線で表示。幅430px未満は最大2件、620px未満は最大3件、850px未満は最大4件に制限する。

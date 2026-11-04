@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import EarthGlobe, { type EarthGlobeHandle } from './components/EarthGlobe';
 import { CITIES, cityLocalTime } from './lib/cities';
-import { weatherDescription } from './lib/weather';
+import { weatherDescription, windDirectionLabel } from './lib/weather';
 import { useWeather } from './hooks/useWeather';
 
 const formatUtc = (date: Date) =>
@@ -107,6 +107,38 @@ export default function App() {
               <span>{condition?.label ?? '天気データなし'}</span>
               <span>湿度 {selectedWeather ? `${Math.round(selectedWeather.humidity)}%` : '—'}</span>
             </div>
+            <dl className="weather-details-grid" aria-label="詳細な気象情報">
+              <div>
+                <dt>体感温度</dt>
+                <dd>{selectedWeather?.apparentTemperature == null
+                  ? '—' : `${selectedWeather.apparentTemperature.toFixed(1)} °C`}</dd>
+              </div>
+              <div>
+                <dt>降水確率 <span className="weather-metric-tag">1時間予報</span></dt>
+                <dd>{selectedWeather?.precipitationProbability == null
+                  ? '—' : `${Math.round(selectedWeather.precipitationProbability)} %`}</dd>
+              </div>
+              <div>
+                <dt>風速</dt>
+                <dd>{selectedWeather?.windSpeed == null
+                  ? '—' : `${selectedWeather.windSpeed.toFixed(1)} km/h`}</dd>
+              </div>
+              <div>
+                <dt>風向</dt>
+                <dd>{windDirectionLabel(selectedWeather?.windDirection ?? null)}</dd>
+              </div>
+              <div>
+                <dt>降水量</dt>
+                <dd>{selectedWeather?.precipitation == null
+                  ? '—' : `${selectedWeather.precipitation.toFixed(1)} mm`}</dd>
+              </div>
+              <div>
+                <dt>雲量</dt>
+                <dd>{selectedWeather?.cloudCover == null
+                  ? '—' : `${Math.round(selectedWeather.cloudCover)} %`}</dd>
+              </div>
+            </dl>
+            <p className="weather-metric-note">降水確率は現在の時間帯を含む1時間の予報値です。</p>
             {selectedWeather && (
               <div className="city-feature-observed">
                 観測時刻：{cityLocalTime(selectedCity, new Date(selectedWeather.observedAt))}
@@ -165,7 +197,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        <span>WORLD WEATHER <span className="footer-muted">/ EXPERIMENTAL BUILD 0.3</span></span>
+        <span>WORLD WEATHER <span className="footer-muted">/ EXPERIMENTAL BUILD 0.4</span></span>
         <span className="footer-links">
           <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">WEATHER: OPEN-METEO ↗</a>
           <span className="footer-separator">·</span>
