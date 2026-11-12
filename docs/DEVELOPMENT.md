@@ -2,7 +2,7 @@
 
 ## 必要環境
 
-- Node.js 22以降、npm
+- Node.js 26系、npm
 - WebGL対応ブラウザ（Chrome / Edge / Firefox / Safariなど）
 
 ## ローカル起動・テスト
@@ -19,7 +19,7 @@ npm run build:pages:develop
 npm run build:pages:main
 ```
 
-`npm test` はNode.js 22の型削除機能（`--experimental-strip-types`）と組み込みテストランナーでテストを実行します。`dist/` はGit管理しません。
+`npm test` はNode.js 26の型削除機能（`--experimental-strip-types`）と組み込みテストランナーでテストを実行します。`dist/` はGit管理しません。
 
 ## コード構成・責務
 

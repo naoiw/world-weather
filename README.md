@@ -35,7 +35,7 @@
 - **Three.js / OrbitControls** — 地球儀のレンダリングと操作、昼夜のShader
 - **Open-Meteo Forecast API** — 現在の天気（APIキー不要の非商用利用）
 - **CSS / Vite 7** — レスポンシブスタイル、開発・ビルド
-- **Node.js 22 / npm** — 開発・組み込みテスト
+- **Node.js 26 / npm** — 開発・組み込みテスト
 - **GitHub Actions / GitHub Pages** — テスト・検証・公開
 
 ## ローカル開発
